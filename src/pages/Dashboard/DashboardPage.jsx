@@ -83,7 +83,7 @@ const DashboardPage = () => {
     <FloatButton
       type="primary" 
       shape="circle"
-      style={{ insetInlineEnd: 40, insetBlockEnd: 40, position: "fixed", transform: "scale(1.6)"}}
+      style={{ insetInlineEnd: 40, insetBlockEnd: 40, position: "fixed", transform: "scale(1.7)"}}
       icon={<PlusOutlined />}
       onClick={() => setIsModalVisible(true)}  
     />

@@ -1,12 +1,6 @@
 import { Layout, Menu, Typography, Dropdown, Button } from "antd";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  DashboardOutlined,
-  UnorderedListOutlined,
-  SettingOutlined,
-  UserOutlined,
-  LogoutOutlined,
-} from "@ant-design/icons";
+import {DashboardOutlined, UnorderedListOutlined, SettingOutlined, UserOutlined, LogoutOutlined} from "@ant-design/icons";
 import { useState, useEffect } from "react";
 
 const { Header, Sider, Content } = Layout;
