@@ -12,12 +12,13 @@ const LoginPage = () => {
     if (!username || !password) {
       return message.error("Todos los campos son obligatorios");
     }
-
+  
     try {
       const response = await axios.post("http://localhost:3000/login", { username, password });
-
+  
       if (response.data.success) {
         localStorage.setItem("token", response.data.token);
+        localStorage.setItem("userId", response.data.userId); // Guardar el userId
         message.success("Inicio de sesión exitoso");
         navigate("/dashboard");
       } else {
@@ -28,6 +29,8 @@ const LoginPage = () => {
       message.error("Error en el inicio de sesión");
     }
   };
+  
+  
 
   return (
     <div className="login-container">
