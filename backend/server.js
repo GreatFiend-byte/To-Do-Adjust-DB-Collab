@@ -131,7 +131,31 @@ app.get("/getTasks/:userId", async (req, res) => {
   }
 });
 
- 
+app.post("/deleteTask", async (req, res) => {
+  try {
+    const { taskId } = req.body; // Recibir el ID de la tarea a eliminar
+
+    if (!taskId) {
+      return res.status(400).json({ success: false, message: "El ID de la tarea es obligatorio" });
+    }
+
+    const taskRef = db.collection("tasks").doc(taskId);
+    const taskDoc = await taskRef.get();
+
+    if (!taskDoc.exists) {
+      return res.status(404).json({ success: false, message: "Tarea no encontrada" });
+    }
+
+    await taskRef.delete();
+
+    res.json({ success: true, message: "Tarea eliminada correctamente" });
+  } catch (error) {
+    console.error("Error en /deleteTask:", error);
+    res.status(500).json({ success: false, message: "Error en el servidor" });
+  }
+});
+
+
 
 const PORT = process.env.PORT || 3000;
 console.log("JWT_SECRET:", JWT_SECRET);

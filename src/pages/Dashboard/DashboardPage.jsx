@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Card, Button, Modal, Input, Select, message } from "antd";
+import { Card, Button, Modal, Input, Select, message, FloatButton } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
 import axios from "axios";
 
 const DashboardPage = () => {
@@ -47,26 +48,52 @@ const DashboardPage = () => {
     }
   };
 
+  const handleDeleteTask = async (taskId) => {
+    try {
+      const response = await axios.post("http://localhost:3000/deleteTask", { taskId });
+  
+      if (response.data.success) {
+        message.success("Tarea eliminada");
+        fetchTasks(); // Recargar la lista de tareas
+      } else {
+        message.error(response.data.message);
+      }
+    } catch (error) {
+      message.error("Error al eliminar la tarea");
+    }
+  };
+  
+  
+
   return (
     <div style={{ padding: "20px" }}>
       {tasks.map(task => (
         <Card key={task.id} title={task.name} style={{ marginBottom: "10px" }}>
           <p>Status: {task.status}</p>
+          <Button 
+            type="primary" danger
+            onClick={() => handleDeleteTask(task.id)}
+            >
+            Eliminar
+          </Button>
         </Card>
       ))}
 
-      <Button 
-        type="primary" 
-        style={{ position: "fixed", bottom: "20px", right: "20px" }}
-        onClick={() => setIsModalVisible(true)}
-      >
-        + Agregar Tarea
-      </Button>
+
+    <FloatButton
+      type="primary" 
+      shape="circle"
+      style={{ insetInlineEnd: 40, insetBlockEnd: 40, position: "fixed", transform: "scale(1.6)"}}
+      icon={<PlusOutlined />}
+      onClick={() => setIsModalVisible(true)}  
+    />
+      
 
       <Modal title="Nueva Tarea" visible={isModalVisible} onOk={handleAddTask} onCancel={() => setIsModalVisible(false)}>
         <Input placeholder="Nombre de la tarea" onChange={e => setNewTask({ ...newTask, name: e.target.value })} />
         <Input placeholder="Descripción" onChange={e => setNewTask({ ...newTask, description: e.target.value })} style={{ marginTop: 10 }} />
         <Input placeholder="Tiempo hasta finalizar" onChange={e => setNewTask({ ...newTask, timeUntilFinish: e.target.value })} style={{ marginTop: 10 }} />
+        <Input placeholder="Categoria" onChange={e => setNewTask({ ...newTask, category: e.target.value })} style={{ marginTop: 10 }} />
         <Select defaultValue="In Progress" onChange={value => setNewTask({ ...newTask, status: value })} style={{ width: "100%", marginTop: 10 }}>
           <Select.Option value="In Progress">En Progreso</Select.Option>
           <Select.Option value="Done">Completada</Select.Option>
