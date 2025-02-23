@@ -1,8 +1,10 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import LandingPage from "./pages/LandingPage/LandingPage";
 import LoginPage from "./pages/LoginPage/LoginPage";
-import RegisterPage from "./pages/RegisterPage/RegisterPage"; // Importamos el nuevo componente
+import RegisterPage from "./pages/RegisterPage/RegisterPage";
 import DashboardPage from "./pages/Dashboard/DashboardPage";
+import DashboardGroupPage from "./pages/Dashboard/DashboardGroupPage";
+import TaskPage from "./pages/Dashboard//TaskPage";
 import MainLayout from "./layouts/MainLayout";
 import "./styles/global.css";
 
@@ -13,17 +15,23 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/dashboard" element={
+          <MainLayout>
+            <DashboardPage />
+          </MainLayout>
+        }
+        />
         <Route
-          path="/dashboard"
+          path="/dashboard-group"
           element={
             <MainLayout>
-              <DashboardPage />
+              <DashboardGroupPage />
             </MainLayout>
           }
         />
+        <Route path="/tasks/:groupId" element={<MainLayout><TaskPage /></MainLayout>} />
       </Routes>
     </Router>
   );
 }
-
 export default App;

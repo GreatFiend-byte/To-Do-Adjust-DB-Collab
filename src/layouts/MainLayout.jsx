@@ -1,6 +1,6 @@
 import { Layout, Menu, Typography, Dropdown, Button } from "antd";
 import { Link, useNavigate } from "react-router-dom";
-import {DashboardOutlined, UnorderedListOutlined, SettingOutlined, UserOutlined, LogoutOutlined} from "@ant-design/icons";
+import { DashboardOutlined, UnorderedListOutlined, SettingOutlined, UserOutlined, LogoutOutlined } from "@ant-design/icons";
 import { useState, useEffect } from "react";
 
 const { Header, Sider, Content } = Layout;
@@ -43,8 +43,12 @@ const MainLayout = ({ children }) => {
           <Menu.Item key="1" icon={<DashboardOutlined />}>
             <Link to="/dashboard">Tareas</Link>
           </Menu.Item>
-          <Menu.Item key="2" icon={<UnorderedListOutlined />}>Menu</Menu.Item>
-          <Menu.Item key="3" icon={<SettingOutlined />}>Configuración</Menu.Item>
+          <Menu.Item key="2" icon={<UnorderedListOutlined />}>
+            <Link to="/dashboard-group">Grupo de Tareas</Link>
+          </Menu.Item>
+          <Menu.Item key="3" icon={<SettingOutlined />}>
+            <Link to="/settings">Configuración</Link>
+          </Menu.Item>
         </Menu>
       </Sider>
       <Layout>
