@@ -189,7 +189,7 @@ app.post("/updateTask", async (req, res) => {
   }
 });
 
-// Obtener grupos de un usuario
+
 app.get("/getUserGroups/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -202,7 +202,7 @@ app.get("/getUserGroups/:userId", async (req, res) => {
   }
 });
 
-// Obtener grupos donde el usuario es miembro
+
 app.get("/getGroupsByUser/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -215,7 +215,7 @@ app.get("/getGroupsByUser/:userId", async (req, res) => {
   }
 });
 
-// Crear un nuevo grupo
+
 app.post("/addGroup", async (req, res) => {
   try {
     const { name, description, userId, members } = req.body;
@@ -228,19 +228,19 @@ app.post("/addGroup", async (req, res) => {
   }
 });
 
-// Eliminar un grupo y sus subcolecciones
+
 app.post("/deleteGroup", async (req, res) => {
   try {
     const { groupId } = req.body;
 
-    // Referencia al grupo
+
     const groupRef = groupsCollection.doc(groupId);
 
-    // Eliminar la subcolección "tasks" (si existe)
+   
     const tasksCollectionPath = `groups/${groupId}/tasks`;
     await deleteCollection(db, tasksCollectionPath);
 
-    // Eliminar el documento del grupo
+    
     await groupRef.delete();
 
     res.json({ success: true, message: "Grupo y subcolecciones eliminados correctamente" });
@@ -250,7 +250,7 @@ app.post("/deleteGroup", async (req, res) => {
   }
 });
 
-// Actualizar un grupo
+
 app.post("/updateGroup", async (req, res) => {
   try {
     const { id, name, description } = req.body;
@@ -266,22 +266,22 @@ app.post("/addTaskGroup", async (req, res) => {
   try {
     const { title, description, status, groupId, userId, assignedTo } = req.body;
 
-    // Verificar si el usuario es el creador del grupo
+    
     const groupDoc = await groupsCollection.doc(groupId).get();
     if (!groupDoc.exists || groupDoc.data().userId !== userId) {
       return res.status(403).json({ success: false, message: "No tienes permiso para crear tareas en este grupo" });
     }
 
-    // Crear la tarea con un valor por defecto para assignedTo
+    
     const taskData = {
       title,
       description,
       status,
-      assignedTo: assignedTo || null, // Si no se proporciona, se asigna null
+      assignedTo: assignedTo || null, 
       createdAt: new Date(),
     };
 
-    // Guardar la tarea en Firestore
+ 
     const tasksRef = db.collection("groups").doc(groupId).collection("tasks");
     const docRef = await tasksRef.add(taskData);
 
@@ -296,13 +296,13 @@ app.post("/updateTaskGroup", async (req, res) => {
   try {
     const { taskId, title, description, dueDate, assignedTo, groupId, userId } = req.body;
 
-    // Verificar si el usuario es el creador del grupo
+    
     const groupDoc = await groupsCollection.doc(groupId).get();
     if (!groupDoc.exists || groupDoc.data().userId !== userId) {
       return res.status(403).json({ success: false, message: "No tienes permiso para editar tareas en este grupo" });
     }
 
-    // Actualizar la tarea en Firestore
+    
     const taskRef = db.collection("groups").doc(groupId).collection("tasks").doc(taskId);
     await taskRef.update({
       title,
@@ -322,13 +322,13 @@ app.post("/deleteTaskGroup", async (req, res) => {
   try {
     const { taskId, groupId, userId } = req.body;
 
-    // Verificar si el usuario es el creador del grupo
+    
     const groupDoc = await groupsCollection.doc(groupId).get();
     if (!groupDoc.exists || groupDoc.data().userId !== userId) {
       return res.status(403).json({ success: false, message: "No tienes permiso para eliminar tareas en este grupo" });
     }
 
-    // Eliminar la tarea de Firestore
+    
     const taskRef = db.collection("groups").doc(groupId).collection("tasks").doc(taskId);
     await taskRef.delete();
 
@@ -343,13 +343,13 @@ app.post("/updateTaskStatus", async (req, res) => {
   try {
     const { taskId, groupId, status, userId } = req.body;
 
-    // Verificar si el usuario es el creador del grupo
+    
     const groupDoc = await groupsCollection.doc(groupId).get();
     if (!groupDoc.exists || groupDoc.data().userId !== userId) {
       return res.status(403).json({ success: false, message: "No tienes permiso para cambiar el estado de tareas en este grupo" });
     }
 
-    // Actualizar el estado de la tarea en Firestore
+    
     const taskRef = db.collection("groups").doc(groupId).collection("tasks").doc(taskId);
     await taskRef.update({ status });
 
@@ -364,16 +364,16 @@ app.get("/getGroupMembers/:groupId", async (req, res) => {
   try {
     const { groupId } = req.params;
 
-    // Verificar si el grupo existe
+    
     const groupDoc = await groupsCollection.doc(groupId).get();
     if (!groupDoc.exists) {
       return res.status(404).json({ success: false, message: "Grupo no encontrado" });
     }
 
-    // Obtener los miembros del grupo
+    
     const members = groupDoc.data().members;
 
-    // Obtener los detalles de los usuarios
+    
     const users = [];
     for (const memberId of members) {
       const userDoc = await usersCollection.doc(memberId).get();
@@ -401,7 +401,7 @@ app.get("/getGroupTasks/:groupId", async (req, res) => {
       return res.status(400).json({ success: false, message: "El ID del grupo es obligatorio" });
     }
 
-    // Verificar si el grupo existe
+   
     const groupDoc = await groupsCollection.doc(groupId).get();
     if (!groupDoc.exists) {
       return res.status(404).json({ success: false, message: "Grupo no encontrado" });
@@ -410,7 +410,7 @@ app.get("/getGroupTasks/:groupId", async (req, res) => {
     const groupData = groupDoc.data();
     console.log("groupData:", groupData);
 
-    // Verificar si el usuario es miembro del grupo
+    
     const isMember = groupData.members.includes(userId);
     const isCreator = groupData.userId === userId;
 
@@ -421,7 +421,7 @@ app.get("/getGroupTasks/:groupId", async (req, res) => {
       return res.status(403).json({ success: false, message: "No tienes permiso para ver este grupo" });
     }
 
-    // Obtener todas las tareas del grupo
+  
     const tasksRef = db.collection("groups").doc(groupId).collection("tasks");
     const snapshot = await tasksRef.get();
 
@@ -440,21 +440,21 @@ app.get("/getGroupTasks/:groupId", async (req, res) => {
   }
 });
 
-// Obtener el creador de un grupo
+
 app.get("/getGroupCreator/:groupId", async (req, res) => {
   try {
     const { groupId } = req.params;
 
-    // Verificar si el grupo existe
+    
     const groupDoc = await db.collection("groups").doc(groupId).get();
     if (!groupDoc.exists) {
       return res.status(404).json({ success: false, message: "Grupo no encontrado" });
     }
 
-    // Obtener el ID del creador del grupo
+    
     const creatorId = groupDoc.data().userId;
 
-    // Devolver el ID del creador
+    
     res.json({ success: true, creatorId });
   } catch (error) {
     console.error("Error obteniendo creador del grupo:", error);
@@ -462,18 +462,18 @@ app.get("/getGroupCreator/:groupId", async (req, res) => {
   }
 });
 
-// Actualizar el estado de una tarea
+
 app.post("/updateTaskStatus", async (req, res) => {
   try {
     const { taskId, groupId, status, userId } = req.body;
 
-    // Verificar si el usuario es el creador del grupo
+    
     const groupDoc = await groupsCollection.doc(groupId).get();
     if (!groupDoc.exists || groupDoc.data().userId !== userId) {
       return res.status(403).json({ success: false, message: "No tienes permiso para modificar tareas en este grupo" });
     }
 
-    // Actualizar el estado de la tarea
+
     const taskRef = db.collection("groups").doc(groupId).collection("tasks").doc(taskId);
     await taskRef.update({ status });
 
@@ -484,7 +484,7 @@ app.post("/updateTaskStatus", async (req, res) => {
   }
 });
 
-// Función para eliminar una colección recursivamente
+
 const deleteCollection = async (db, collectionPath, batchSize = 100) => {
   const collectionRef = db.collection(collectionPath);
   const query = collectionRef.limit(batchSize);
@@ -498,13 +498,13 @@ const deleteQueryBatch = async (db, query, resolve, reject) => {
   try {
     const snapshot = await query.get();
 
-    // Si no hay documentos, terminamos
+    
     if (snapshot.size === 0) {
       resolve();
       return;
     }
 
-    // Eliminar documentos en lote
+    
     const batch = db.batch();
     snapshot.docs.forEach((doc) => {
       batch.delete(doc.ref);
@@ -512,7 +512,7 @@ const deleteQueryBatch = async (db, query, resolve, reject) => {
 
     await batch.commit();
 
-    // Llamada recursiva para eliminar el siguiente lote
+    
     deleteQueryBatch(db, query, resolve, reject);
   } catch (error) {
     reject(error);

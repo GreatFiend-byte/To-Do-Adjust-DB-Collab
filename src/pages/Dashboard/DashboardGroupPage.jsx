@@ -13,34 +13,34 @@ const DashboardGroupPage = () => {
     name: "",
     description: "",
     status: "Active",
-    members: [], // Lista de IDs de usuarios seleccionados
+    members: [],
   });
   const [editingGroup, setEditingGroup] = useState(null);
-  const [users, setUsers] = useState([]); // Lista de todos los usuarios
-  const [searchQuery, setSearchQuery] = useState(""); // Buscador de usuarios
-  const [selectedUsers, setSelectedUsers] = useState([]); // Usuarios seleccionados
+  const [users, setUsers] = useState([]); 
+  const [searchQuery, setSearchQuery] = useState(""); 
+  const [selectedUsers, setSelectedUsers] = useState([]);
   const navigate = useNavigate();
   const userId = localStorage.getItem("userId");
 
   useEffect(() => {
     if (userId) {
       fetchGroups();
-      fetchUsers(); // Obtener la lista de usuarios al cargar el componente
+      fetchUsers(); 
     }
   }, [userId]);
 
-  // Obtener la lista de grupos del usuario (creados y como miembro)
+  
   const fetchGroups = async () => {
     try {
-      // Obtener grupos creados por el usuario
+
       const createdGroupsResponse = await axios.get(`http://localhost:3000/getUserGroups/${userId}`);
       const createdGroups = createdGroupsResponse.data.success ? createdGroupsResponse.data.groups : [];
 
-      // Obtener grupos donde el usuario es miembro
+
       const memberGroupsResponse = await axios.get(`http://localhost:3000/getGroupsByUser/${userId}`);
       const memberGroups = memberGroupsResponse.data.success ? memberGroupsResponse.data.groups : [];
 
-      // Combinar y eliminar duplicados
+
       const allGroups = [...createdGroups, ...memberGroups];
       const uniqueGroups = Array.from(new Set(allGroups.map((group) => group.id))).map((id) =>
         allGroups.find((group) => group.id === id)
@@ -52,7 +52,7 @@ const DashboardGroupPage = () => {
     }
   };
 
-  // Obtener la lista de usuarios
+
   const fetchUsers = async () => {
     try {
       const response = await axios.get("http://localhost:3000/getUsers");
@@ -64,12 +64,12 @@ const DashboardGroupPage = () => {
     }
   };
 
-  // Filtrar usuarios basado en la búsqueda
+  
   const filteredUsers = users.filter((user) =>
     user.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Manejar la selección de usuarios
+  
   const handleUserSelection = (userId) => {
     if (selectedUsers.includes(userId)) {
       setSelectedUsers(selectedUsers.filter((id) => id !== userId));
@@ -78,24 +78,24 @@ const DashboardGroupPage = () => {
     }
   };
 
-  // Abrir el modal para seleccionar usuarios
+  
   const openUserSelectionModal = () => {
     setIsUserModalVisible(true);
   };
 
-  // Cerrar el modal de selección de usuarios
+
   const closeUserSelectionModal = () => {
     setIsUserModalVisible(false);
-    setSearchQuery(""); // Limpiar la búsqueda
+    setSearchQuery("");
   };
 
-  // Guardar los usuarios seleccionados y cerrar el modal
+ 
   const saveSelectedUsers = () => {
     setNewGroup({ ...newGroup, members: selectedUsers });
     closeUserSelectionModal();
   };
 
-  // Crear un nuevo grupo
+ 
   const handleAddGroup = async () => {
     try {
       const response = await axios.post("http://localhost:3000/addGroup", {
@@ -107,14 +107,14 @@ const DashboardGroupPage = () => {
         fetchGroups();
         setIsModalVisible(false);
         setNewGroup({ name: "", description: "", status: "Active", members: [] });
-        setSelectedUsers([]); // Limpiar la selección de usuarios
+        setSelectedUsers([]);
       }
     } catch (error) {
       message.error("Error al añadir el grupo");
     }
   };
 
-  // Eliminar un grupo
+  
   const handleDeleteGroup = async (groupId) => {
     try {
       const response = await axios.post("http://localhost:3000/deleteGroup", { groupId });
@@ -129,7 +129,6 @@ const DashboardGroupPage = () => {
     }
   };
 
-  // Editar un grupo
   const handleEditGroup = async () => {
     if (!editingGroup || !editingGroup.id) return;
 
@@ -228,7 +227,7 @@ const DashboardGroupPage = () => {
         </Button>
       </Modal>
 
-      {/* Modal para seleccionar usuarios */}
+
       <Modal
         title="Seleccionar Usuarios"
         visible={isUserModalVisible}
@@ -256,7 +255,7 @@ const DashboardGroupPage = () => {
         />
       </Modal>
 
-      {/* Modal para editar un grupo */}
+
       <Modal
         title="Editar Grupo"
         visible={isEditModalVisible}

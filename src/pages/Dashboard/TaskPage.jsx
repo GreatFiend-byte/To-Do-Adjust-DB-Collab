@@ -21,14 +21,14 @@ const TaskPage = () => {
   });
   const [editingTask, setEditingTask] = useState(null);
   const [isCreator, setIsCreator] = useState(false);
-  const [groupMembers, setGroupMembers] = useState([]); // Lista de miembros del grupo
+  const [groupMembers, setGroupMembers] = useState([]); 
   const userId = localStorage.getItem("userId");
 
   useEffect(() => {
     if (groupId) {
       fetchTasksGroup();
       checkIfUserIsCreator();
-      fetchGroupMembers(); // Obtener los miembros del grupo
+      fetchGroupMembers(); 
     }
   }, [groupId]);
 
@@ -92,7 +92,7 @@ const TaskPage = () => {
   const handleEditTask = async () => {
     try {
       const response = await axios.post("http://localhost:3000/updateTaskGroup", {
-        taskId: editingTask.id, // ID de la tarea
+        taskId: editingTask.id,
         title: editingTask.title,
         description: editingTask.description,
         dueDate: editingTask.dueDate,
