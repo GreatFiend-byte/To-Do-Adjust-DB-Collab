@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Table, Button, Modal, Input, Select, message } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import axios from "axios";
+import { fetchTasks, addTask, deleteTask, updateTask } from "../../service/taskService";
 
 const DashboardPage = () => {
   const [tasks, setTasks] = useState([]);
@@ -19,63 +19,52 @@ const DashboardPage = () => {
 
   useEffect(() => {
     if (userId) {
-      fetchTasks();
+      loadTasks();
     }
-  }, []);
+  }, [userId]);
 
-  const fetchTasks = async () => {
-    try {
-      const response = await axios.get(`http://localhost:3000/getTasks/${userId}`);
-      if (response.data.success) {
-        setTasks(response.data.tasks);
-      }
-    } catch (error) {
-      console.error("Error cargando tareas:", error);
+  const loadTasks = async () => {
+    const result = await fetchTasks(userId);
+    if (result.success) {
+      setTasks(result.tasks);
+    } else {
+      message.error(result.message);
     }
   };
 
   const handleAddTask = async () => {
-    try {
-      const response = await axios.post("http://localhost:3000/addTask", { ...newTask, userId });
-      if (response.data.success) {
-        message.success("Tarea añadida");
-        fetchTasks();
-        setIsModalVisible(false);
-        setNewTask({ name: "", description: "", timeUntilFinish: "", category: "", status: "In Progress" });
-      }
-    } catch (error) {
-      message.error("Error al añadir la tarea");
+    const result = await addTask({ ...newTask, userId });
+    if (result.success) {
+      message.success(result.message);
+      loadTasks();
+      setIsModalVisible(false);
+      setNewTask({ name: "", description: "", timeUntilFinish: "", category: "", status: "In Progress" });
+    } else {
+      message.error(result.message);
     }
   };
 
   const handleDeleteTask = async (taskId) => {
-    try {
-      const response = await axios.post("http://localhost:3000/deleteTask", { taskId });
-
-      if (response.data.success) {
-        message.success("Tarea eliminada");
-        fetchTasks();
-      } else {
-        message.error(response.data.message);
-      }
-    } catch (error) {
-      message.error("Error al eliminar la tarea");
+    const result = await deleteTask(taskId);
+    if (result.success) {
+      message.success(result.message);
+      loadTasks();
+    } else {
+      message.error(result.message);
     }
   };
 
   const handleEditTask = async () => {
     if (!editingTask || !editingTask.id) return;
 
-    try {
-      const response = await axios.post("http://localhost:3000/updateTask", editingTask);
-      if (response.data.success) {
-        message.success("Tarea actualizada");
-        fetchTasks();
-        setIsEditModalVisible(false);
-        setEditingTask(null);
-      }
-    } catch (error) {
-      message.error("Error al actualizar la tarea");
+    const result = await updateTask(editingTask);
+    if (result.success) {
+      message.success(result.message);
+      loadTasks();
+      setIsEditModalVisible(false);
+      setEditingTask(null);
+    } else {
+      message.error(result.message);
     }
   };
 

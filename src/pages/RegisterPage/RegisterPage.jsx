@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Input, Button, message } from "antd";
-import axios from "axios";
+import { registerService } from "../../service/authService";
 
 const RegisterPage = () => {
   const [email, setEmail] = useState("");
@@ -17,26 +17,18 @@ const RegisterPage = () => {
     if (!email || !username || !password) {
       return message.error("Todos los campos son obligatorios");
     }
-
+  
     if (!isValidEmail(email)) {
       return message.error("El correo electrónico no es válido");
     }
-
-    try {
-      const response = await axios.post("http://localhost:3000/register", {
-        email,
-        username,
-        password,
-      });
-
-      if (response.data.success) {
-        message.success("Registro exitoso, ahora inicia sesión");
-        navigate("/login");
-      } else {
-        message.error(response.data.message);
-      }
-    } catch (error) {
-      message.error("Error en el registro");
+  
+    const result = await registerService(email, username, password);
+  
+    if (result.success) {
+      message.success(result.message);
+      navigate("/login");
+    } else {
+      message.error(result.message);
     }
   };
 

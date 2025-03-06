@@ -1,9 +1,17 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Button, Modal, Input, DatePicker, Select, message } from "antd";
+import { Button, Modal, Input, Select, message } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import axios from "axios";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import {
+  fetchTasksGroup,
+  addTaskGroup,
+  updateTaskGroup,
+  deleteTaskGroup,
+  updateTaskStatus,
+  fetchGroupMembers,
+  checkIfUserIsCreator,
+} from "../../service/taskGroupService";
 
 const { Option } = Select;
 
@@ -15,132 +23,105 @@ const TaskPage = () => {
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
-    dueDate: null,
+    dueDate: "", // Ahora es una cadena
     assignedTo: null,
     status: "Pending",
   });
   const [editingTask, setEditingTask] = useState(null);
   const [isCreator, setIsCreator] = useState(false);
-  const [groupMembers, setGroupMembers] = useState([]); 
+  const [groupMembers, setGroupMembers] = useState([]);
   const userId = localStorage.getItem("userId");
 
   useEffect(() => {
     if (groupId) {
-      fetchTasksGroup();
-      checkIfUserIsCreator();
-      fetchGroupMembers(); 
+      loadTasks();
+      checkIfCreator();
+      loadGroupMembers();
     }
   }, [groupId]);
 
-  const checkIfUserIsCreator = async () => {
-    try {
-      const response = await axios.get(`http://localhost:3000/getGroupCreator/${groupId}`);
-      if (response.data.success && response.data.creatorId === userId) {
-        setIsCreator(true);
-      }
-    } catch (error) {
-      console.error("Error verificando creador del grupo:", error);
+  const loadTasks = async () => {
+    const result = await fetchTasksGroup(groupId, userId);
+    if (result.success) {
+      setTasks(result.tasks); // No se necesita conversión a moment
+    } else {
+      message.error(result.message);
     }
   };
 
-  const fetchTasksGroup = async () => {
-    try {
-      const userId = localStorage.getItem("userId");
-      const response = await axios.get(`http://localhost:3000/getGroupTasks/${groupId}`, {
-        params: { userId },
-      });
-      if (response.data.success) {
-        setTasks(response.data.tasks);
-      } else {
-        message.warning("No se encontraron tareas para este grupo.");
-      }
-    } catch (error) {
-      console.error("Error cargando tareas:", error);
-      message.error("Error al obtener las tareas.");
+  const checkIfCreator = async () => {
+    const result = await checkIfUserIsCreator(groupId);
+    if (result.success && result.creatorId === userId) {
+      setIsCreator(true);
     }
   };
 
-  const fetchGroupMembers = async () => {
-    try {
-      const response = await axios.get(`http://localhost:3000/getGroupMembers/${groupId}`);
-      if (response.data.success) {
-        setGroupMembers(response.data.members);
-      }
-    } catch (error) {
-      console.error("Error cargando miembros del grupo:", error);
+  const loadGroupMembers = async () => {
+    const result = await fetchGroupMembers(groupId);
+    if (result.success) {
+      setGroupMembers(result.members);
+    } else {
+      message.error(result.message);
     }
   };
 
   const handleAddTaskGroup = async () => {
-    try {
-      const response = await axios.post("http://localhost:3000/addTaskGroup", {
-        ...newTask,
-        groupId,
-        userId,
-      });
-      if (response.data.success) {
-        message.success("Tarea añadida");
-        fetchTasksGroup();
-        setIsModalVisible(false);
-        setNewTask({ title: "", description: "", dueDate: null, assignedTo: null, status: "Pending" });
-      }
-    } catch (error) {
-      message.error("Error al añadir la tarea");
+    const result = await addTaskGroup(newTask, groupId, userId);
+    if (result.success) {
+      message.success(result.message);
+      loadTasks();
+      setIsModalVisible(false);
+      setNewTask({ title: "", description: "", dueDate: "", assignedTo: null, status: "Pending" });
+    } else {
+      message.error(result.message);
     }
   };
 
   const handleEditTask = async () => {
-    try {
-      const response = await axios.post("http://localhost:3000/updateTaskGroup", {
-        taskId: editingTask.id,
-        title: editingTask.title,
-        description: editingTask.description,
-        dueDate: editingTask.dueDate,
-        assignedTo: editingTask.assignedTo,
-        groupId,
-        userId,
+    if (!editingTask?.id) {
+      message.error("ID de tarea inválido");
+      return;
+    }
+
+    const taskData = {
+      ...editingTask,
+      taskId: String(editingTask.id), // Asegúrate de que taskId sea una cadena
+    };
+
+    const result = await updateTaskGroup(taskData, groupId, userId);
+    if (result.success) {
+      message.success(result.message);
+      loadTasks();
+      setIsEditModalVisible(false);
+      setEditingTask({
+        taskId: "", // Limpia el taskId al cerrar el modal
+        title: "",
+        description: "",
+        dueDate: "",
+        assignedTo: null,
       });
-      if (response.data.success) {
-        message.success("Tarea actualizada");
-        fetchTasksGroup();
-        setIsEditModalVisible(false);
-        setEditingTask(null);
-      }
-    } catch (error) {
-      message.error("Error al actualizar la tarea");
+    } else {
+      message.error(result.message);
     }
   };
 
   const handleDeleteTask = async (taskId) => {
-    try {
-      const response = await axios.post("http://localhost:3000/deleteTaskGroup", {
-        taskId,
-        groupId,
-        userId,
-      });
-      if (response.data.success) {
-        message.success("Tarea eliminada");
-        fetchTasksGroup();
-      }
-    } catch (error) {
-      message.error("Error al eliminar la tarea");
+    const result = await deleteTaskGroup(taskId, groupId, userId);
+    if (result.success) {
+      message.success(result.message);
+      loadTasks();
+    } else {
+      message.error(result.message);
     }
   };
 
   const handleChangeStatus = async (taskId, newStatus) => {
-    try {
-      const response = await axios.post("http://localhost:3000/updateTaskStatus", {
-        taskId,
-        groupId,
-        status: newStatus,
-        userId,
-      });
-      if (response.data.success) {
-        message.success("Estado de la tarea actualizado");
-        fetchTasksGroup();
-      }
-    } catch (error) {
-      message.error("Error al actualizar el estado de la tarea");
+    const result = await updateTaskStatus(taskId, groupId, newStatus, userId);
+    if (result.success) {
+      message.success(result.message);
+      loadTasks();
+    } else {
+      message.error(result.message);
     }
   };
 
@@ -276,10 +257,11 @@ const TaskPage = () => {
           onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
           style={{ marginTop: 10 }}
         />
-        <DatePicker
-          placeholder="Fecha de entrega"
-          style={{ marginTop: 10, width: "100%" }}
-          onChange={(date) => setNewTask({ ...newTask, dueDate: date })}
+        <Input
+          placeholder="Fecha de entrega (YYYY-MM-DD)"
+          value={newTask.dueDate}
+          onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+          style={{ marginTop: 10 }}
         />
         <Select
           placeholder="Asignar a"
@@ -300,6 +282,7 @@ const TaskPage = () => {
         onOk={handleEditTask}
         onCancel={() => setIsEditModalVisible(false)}
       >
+        <input type="hidden" value={editingTask?.id || ""} />
         <Input
           placeholder="Título"
           value={editingTask?.title}
@@ -311,11 +294,11 @@ const TaskPage = () => {
           onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })}
           style={{ marginTop: 10 }}
         />
-        <DatePicker
-          placeholder="Fecha de entrega"
-          style={{ marginTop: 10, width: "100%" }}
+        <Input
+          placeholder="Fecha de entrega (YYYY-MM-DD)"
           value={editingTask?.dueDate}
-          onChange={(date) => setEditingTask({ ...editingTask, dueDate: date })}
+          onChange={(e) => setEditingTask({ ...editingTask, dueDate: e.target.value })}
+          style={{ marginTop: 10 }}
         />
         <Select
           placeholder="Asignar a"

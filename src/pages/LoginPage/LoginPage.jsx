@@ -1,36 +1,36 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Input, Button, message } from "antd";
-import axios from "axios";
+import { loginService } from "../../service/authService";
 
 const LoginPage = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = async () => {
-    if (!username || !password) {
-      return message.error("Todos los campos son obligatorios");
-    }
+const handleLogin = async () => {
+  if (!username || !password) {
+    return message.error("Todos los campos son obligatorios");
+  }
+
+  const result = await loginService(username, password);
+
+  if (result.success) {
+    message.success(result.message);
+    setTimeout(() => {
+      navigate("/dashboard");
+    }, 1000);
+  } else {
+    message.error(result.message);
+  }
+};
   
-    try {
-      const response = await axios.post("http://localhost:3000/login", { username, password });
-  
-      if (response.data.success) {
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem("userId", response.data.userId); // Guardar el userId
-        message.success("Inicio de sesión exitoso");
-        navigate("/dashboard");
-      } else {
-        message.error(response.data.message);
-      }
-    } catch (error) {
-      console.error("Login error:", error);
-      message.error("Error en el inicio de sesión");
-    }
-  };
-  
-  
+
+  localStorage.removeItem("token");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("role");
+
+
 
   return (
     <div className="login-container">
