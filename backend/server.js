@@ -5,12 +5,17 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const crypto = require("crypto");
 
-
 const app = express();
 app.use(express.json());
-app.use(cors());
-const JWT_SECRET="aXdlbI5KwLJx1zPv0yXZtR0AeFGRHzJ5mWV2wz+6AQk="
+app.use(cors({
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+}));
 
+
+const JWT_SECRET = crypto.randomBytes(32).toString("hex");
 
 const serviceAccount = require("./firebase-config.json");
 admin.initializeApp({
@@ -19,11 +24,9 @@ admin.initializeApp({
 
 const db = admin.firestore();
 const usersCollection = db.collection("users");
-const groupsCollection = db.collection('groups');
+const groupsCollection = db.collection("groups"); 
 
-
-
-app.post("/register", async (req, res) => {
+app.post("/api/register", async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
@@ -36,63 +39,80 @@ app.post("/register", async (req, res) => {
       return res.status(400).json({ success: false, message: "Correo electrónico inválido" });
     }
 
-    const existingUser = await usersCollection.where("email", "==", email).get();
+    // Verificar si el usuario ya existe
+    const existingUser = await usersCollection.where("username", "==", username).get();
     if (!existingUser.empty) {
       return res.status(400).json({ success: false, message: "El usuario ya existe" });
     }
 
+    // Hashear la contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await usersCollection.add({ username, email, password: hashedPassword });
+    // Guardar el usuario en Firestore
+    await usersCollection.add({ username, email, password: hashedPassword,  role: "user", });
 
     res.json({ success: true, message: "Usuario registrado exitosamente" });
   } catch (error) {
+    console.error("Error en el registro:", error);
     res.status(500).json({ success: false, message: "Error en el servidor" });
   }
 });
 
-app.post("/login", async (req, res) => {
+app.post("/api/updateUserRole", async (req, res) => {
   try {
-    console.log("Request recibida:", req.body);
-    
+    const { userId, newRole, adminId } = req.body;
+
+    // Verificar si el usuario que hace la solicitud es admin
+    const adminDoc = await usersCollection.doc(adminId).get();
+    if (!adminDoc.exists || adminDoc.data().role !== "admin") {
+      return res.status(403).json({ success: false, message: "No autorizado" });
+    }
+
+    // Actualizar el rol del usuario
+    await usersCollection.doc(userId).update({ role: newRole });
+
+    res.json({ success: true, message: "Rol de usuario actualizado" });
+  } catch (error) {
+    console.error("Error actualizando rol:", error);
+    res.status(500).json({ success: false, message: "Error en el servidor" });
+  }
+});
+
+app.post("/api/login", async (req, res) => {
+  try {
     const { username, password } = req.body;
 
     if (!username || !password) {
-      console.log("Faltan datos");
       return res.status(400).json({ success: false, message: "Todos los campos son obligatorios" });
     }
 
-    const userQuery = await db.collection("users").where("username", "==", username).get();
-
+    const userQuery = await usersCollection.where("username", "==", username).get();
     if (userQuery.empty) {
-      console.log("Usuario no encontrado");
       return res.status(400).json({ success: false, message: "Usuario no encontrado" });
     }
 
     const userDoc = userQuery.docs[0];
     const user = userDoc.data();
-    console.log("Usuario encontrado:", user);
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
-
     if (!isPasswordValid) {
-      console.log("Contraseña incorrecta");
       return res.status(400).json({ success: false, message: "Contraseña incorrecta" });
     }
 
-    const token = jwt.sign({ userId: userDoc.id }, JWT_SECRET, { expiresIn: "10m" });
+    const token = jwt.sign({ userId: userDoc.id }, JWT_SECRET, { expiresIn: "1h" });
 
-    console.log("Login exitoso, enviando token...");
-    res.json({ success: true, message: "Inicio de sesión exitoso", token, userId: userDoc.id });
+    res.json({ success: true, message: "Inicio de sesión exitoso", token, userId: userDoc.id, role: user.role, 
+
+    });
   } catch (error) {
-    console.error("Error en /login:", error);
+    console.error("Error en el inicio de sesión:", error);
     res.status(500).json({ success: false, message: "Error en el servidor" });
   }
 });
 
-app.get("/getUsers", async (req, res) => {
+app.get("/api/getUsers", async (req, res) => {
   try {
-    const usersSnapshot = await db.collection("users").get();
+    const usersSnapshot = await usersCollection.get();
     const users = usersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     res.json({ success: true, users });
   } catch (error) {
@@ -102,7 +122,7 @@ app.get("/getUsers", async (req, res) => {
 });
 
 
-app.post("/addTask", async (req, res) => {
+app.post("/api/addTask", async (req, res) => {
   try {
     const { userId, name, description, timeUntilFinish, remindMe, status, category } = req.body;
 
@@ -111,15 +131,14 @@ app.post("/addTask", async (req, res) => {
       return res.status(400).json({ success: false, message: "Faltan datos obligatorios" });
     }
 
-    // Limpiar campos opcionales (remindMe, description, timeUntilFinish, category)
     const taskData = {
       userId,
       name,
-      description: description || "", // Si no se proporciona, se asigna un valor vacío
-      timeUntilFinish: timeUntilFinish || null, // Si no se proporciona, se asigna null
-      remindMe: remindMe || false, // Si no se proporciona, se asigna false
+      description: description || "",
+      timeUntilFinish: timeUntilFinish || null,
+      remindMe: remindMe || false,
       status,
-      category: category || "", // Si no se proporciona, se asigna un valor vacío
+      category: category || "",
       createdAt: new Date()
     };
 
@@ -133,7 +152,7 @@ app.post("/addTask", async (req, res) => {
   }
 });
 
-app.get("/getTasks/:userId", async (req, res) => {
+app.get("/api/getTasks/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     const tasksSnapshot = await db.collection("tasks").where("userId", "==", userId).get();
@@ -147,7 +166,7 @@ app.get("/getTasks/:userId", async (req, res) => {
   }
 });
 
-app.post("/deleteTask", async (req, res) => {
+app.post("/api/deleteTask", async (req, res) => {
   try {
     const { taskId } = req.body; // Recibir el ID de la tarea a eliminar
 
@@ -171,7 +190,7 @@ app.post("/deleteTask", async (req, res) => {
   }
 });
 
-app.post("/updateTask", async (req, res) => {
+app.post("/api/updateTask", async (req, res) => {
   try {
     const { id, name, description, timeUntilFinish, remindMe, status, category } = req.body;
 
@@ -190,7 +209,7 @@ app.post("/updateTask", async (req, res) => {
 });
 
 
-app.get("/getUserGroups/:userId", async (req, res) => {
+app.get("/api/getUserGroups/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     const snapshot = await groupsCollection.where("userId", "==", userId).get();
@@ -203,7 +222,7 @@ app.get("/getUserGroups/:userId", async (req, res) => {
 });
 
 
-app.get("/getGroupsByUser/:userId", async (req, res) => {
+app.get("/api/getGroupsByUser/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     const snapshot = await groupsCollection.where("members", "array-contains", userId).get();
@@ -216,7 +235,7 @@ app.get("/getGroupsByUser/:userId", async (req, res) => {
 });
 
 
-app.post("/addGroup", async (req, res) => {
+app.post("/api/addGroup", async (req, res) => {
   try {
     const { name, description, userId, members } = req.body;
     const newGroup = { name, description, userId, members, status: "Active" };
@@ -229,7 +248,7 @@ app.post("/addGroup", async (req, res) => {
 });
 
 
-app.post("/deleteGroup", async (req, res) => {
+app.post("/api/deleteGroup", async (req, res) => {
   try {
     const { groupId } = req.body;
 
@@ -251,7 +270,7 @@ app.post("/deleteGroup", async (req, res) => {
 });
 
 
-app.post("/updateGroup", async (req, res) => {
+app.post("/api/updateGroup", async (req, res) => {
   try {
     const { id, name, description } = req.body;
     await groupsCollection.doc(id).update({ name, description });
@@ -262,7 +281,7 @@ app.post("/updateGroup", async (req, res) => {
   }
 });
 
-app.post("/addTaskGroup", async (req, res) => {
+app.post("/api/addTaskGroup", async (req, res) => {
   try {
     const { title, description, status, groupId, userId, assignedTo } = req.body;
 
@@ -292,17 +311,23 @@ app.post("/addTaskGroup", async (req, res) => {
   }
 });
 
-app.post("/updateTaskGroup", async (req, res) => {
+app.post("/api/updateTaskGroup", async (req, res) => {
   try {
     const { taskId, title, description, dueDate, assignedTo, groupId, userId } = req.body;
 
-    
+    console.log("Datos recibidos:", { taskId, title, description, dueDate, assignedTo, groupId, userId }); // Verificar los datos recibidos
+
+    // Verificar que taskId no sea undefined, null o una cadena vacía
+    if (!taskId || typeof taskId !== "string" || taskId.trim() === "") {
+      return res.status(400).json({ success: false, message: "ID de tarea inválido" });
+    }
+
     const groupDoc = await groupsCollection.doc(groupId).get();
     if (!groupDoc.exists || groupDoc.data().userId !== userId) {
       return res.status(403).json({ success: false, message: "No tienes permiso para editar tareas en este grupo" });
     }
 
-    
+    // Actualizar solo los campos necesarios
     const taskRef = db.collection("groups").doc(groupId).collection("tasks").doc(taskId);
     await taskRef.update({
       title,
@@ -318,7 +343,7 @@ app.post("/updateTaskGroup", async (req, res) => {
   }
 });
 
-app.post("/deleteTaskGroup", async (req, res) => {
+app.post("/api/deleteTaskGroup", async (req, res) => {
   try {
     const { taskId, groupId, userId } = req.body;
 
@@ -339,7 +364,7 @@ app.post("/deleteTaskGroup", async (req, res) => {
   }
 });
 
-app.post("/updateTaskStatus", async (req, res) => {
+app.post("/api/updateTaskStatus", async (req, res) => {
   try {
     const { taskId, groupId, status, userId } = req.body;
 
@@ -360,7 +385,7 @@ app.post("/updateTaskStatus", async (req, res) => {
   }
 });
 
-app.get("/getGroupMembers/:groupId", async (req, res) => {
+app.get("/api/getGroupMembers/:groupId", async (req, res) => {
   try {
     const { groupId } = req.params;
 
@@ -389,7 +414,7 @@ app.get("/getGroupMembers/:groupId", async (req, res) => {
   }
 });
 
-app.get("/getGroupTasks/:groupId", async (req, res) => {
+app.get("/api/getGroupTasks/:groupId", async (req, res) => {
   try {
     const { groupId } = req.params;
     const { userId } = req.query;
@@ -441,7 +466,7 @@ app.get("/getGroupTasks/:groupId", async (req, res) => {
 });
 
 
-app.get("/getGroupCreator/:groupId", async (req, res) => {
+app.get("/api/getGroupCreator/:groupId", async (req, res) => {
   try {
     const { groupId } = req.params;
 
@@ -463,7 +488,7 @@ app.get("/getGroupCreator/:groupId", async (req, res) => {
 });
 
 
-app.post("/updateTaskStatus", async (req, res) => {
+app.post("/api/updateTaskStatus", async (req, res) => {
   try {
     const { taskId, groupId, status, userId } = req.body;
 
@@ -518,6 +543,90 @@ const deleteQueryBatch = async (db, query, resolve, reject) => {
     reject(error);
   }
 };
+
+// Editar la información de un usuario
+app.post("/api/editUser", async (req, res) => {
+  try {
+    const { userId, username, email, password, adminId } = req.body;
+
+    // Verificar si el usuario que hace la solicitud es admin
+    const adminDoc = await usersCollection.doc(adminId).get();
+    if (!adminDoc.exists || adminDoc.data().role !== "admin") {
+      return res.status(403).json({ success: false, message: "No autorizado" });
+    }
+
+    // Actualizar los datos del usuario
+    const userData = { username, email };
+    if (password) {
+      // Hashear la nueva contraseña si se proporciona
+      const hashedPassword = await bcrypt.hash(password, 10);
+      userData.password = hashedPassword;
+    }
+
+    await usersCollection.doc(userId).update(userData);
+
+    res.json({ success: true, message: "Usuario actualizado correctamente" });
+  } catch (error) {
+    console.error("Error editando usuario:", error);
+    res.status(500).json({ success: false, message: "Error editando usuario" });
+  }
+});
+
+app.post("/api/deleteUser", async (req, res) => {
+  try {
+    const { userId, adminId } = req.body;
+
+    const adminDoc = await usersCollection.doc(adminId).get();
+    if (!adminDoc.exists || adminDoc.data().role !== "admin") {
+      return res.status(403).json({ success: false, message: "No autorizado" });
+    }
+
+    await usersCollection.doc(userId).delete();
+
+    res.json({ success: true, message: "Usuario eliminado correctamente" });
+  } catch (error) {
+    console.error("Error eliminando usuario:", error);
+    res.status(500).json({ success: false, message: "Error eliminando usuario" });
+  }
+});
+
+
+
+app.post("/api/addUser", async (req, res) => {
+  try {
+    const { username, email, password, role, adminId } = req.body;
+
+    // Verificar si el usuario que hace la solicitud es admin
+    const adminDoc = await usersCollection.doc(adminId).get();
+    if (!adminDoc.exists || adminDoc.data().role !== "admin") {
+      return res.status(403).json({ success: false, message: "No autorizado" });
+    }
+
+    // Verificar si el usuario ya existe
+    const userQuery = await usersCollection.where("email", "==", email).get();
+    if (!userQuery.empty) {
+      return res.status(400).json({ success: false, message: "El usuario ya existe" });
+    }
+
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10); // 10 es el número de rondas de hashing
+
+    // Crear un nuevo usuario en Firestore
+    const newUserRef = await usersCollection.add({
+      username,
+      email,
+      password: hashedPassword, // Guardar la contraseña hasheada
+      role,
+      createdAt: new Date().toISOString(),
+    });
+
+    res.json({ success: true, message: "Usuario creado correctamente", userId: newUserRef.id });
+  } catch (error) {
+    console.error("Error creando usuario:", error);
+    res.status(500).json({ success: false, message: "Error creando usuario" });
+  }
+});
+
 
 const PORT = process.env.PORT || 3000;
 console.log("JWT_SECRET:", JWT_SECRET);

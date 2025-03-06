@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Table, Button, Modal, Input, message, Checkbox, List } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { fetchGroups, fetchUsers, addGroup, deleteGroup, updateGroup } from "../../service/groupService";
 
 const DashboardGroupPage = () => {
   const [groups, setGroups] = useState([]);
@@ -16,60 +16,41 @@ const DashboardGroupPage = () => {
     members: [],
   });
   const [editingGroup, setEditingGroup] = useState(null);
-  const [users, setUsers] = useState([]); 
-  const [searchQuery, setSearchQuery] = useState(""); 
+  const [users, setUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
   const navigate = useNavigate();
   const userId = localStorage.getItem("userId");
 
   useEffect(() => {
     if (userId) {
-      fetchGroups();
-      fetchUsers(); 
+      loadGroups();
+      loadUsers();
     }
   }, [userId]);
 
-  
-  const fetchGroups = async () => {
-    try {
-
-      const createdGroupsResponse = await axios.get(`http://localhost:3000/getUserGroups/${userId}`);
-      const createdGroups = createdGroupsResponse.data.success ? createdGroupsResponse.data.groups : [];
-
-
-      const memberGroupsResponse = await axios.get(`http://localhost:3000/getGroupsByUser/${userId}`);
-      const memberGroups = memberGroupsResponse.data.success ? memberGroupsResponse.data.groups : [];
-
-
-      const allGroups = [...createdGroups, ...memberGroups];
-      const uniqueGroups = Array.from(new Set(allGroups.map((group) => group.id))).map((id) =>
-        allGroups.find((group) => group.id === id)
-      );
-
-      setGroups(uniqueGroups);
-    } catch (error) {
-      console.error("Error cargando grupos:", error);
+  const loadGroups = async () => {
+    const result = await fetchGroups(userId);
+    if (result.success) {
+      setGroups(result.groups);
+    } else {
+      message.error(result.message);
     }
   };
 
-
-  const fetchUsers = async () => {
-    try {
-      const response = await axios.get("http://localhost:3000/getUsers");
-      if (response.data.success) {
-        setUsers(response.data.users);
-      }
-    } catch (error) {
-      console.error("Error cargando usuarios:", error);
+  const loadUsers = async () => {
+    const result = await fetchUsers();
+    if (result.success) {
+      setUsers(result.users);
+    } else {
+      message.error(result.message);
     }
   };
 
-  
   const filteredUsers = users.filter((user) =>
     user.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  
   const handleUserSelection = (userId) => {
     if (selectedUsers.includes(userId)) {
       setSelectedUsers(selectedUsers.filter((id) => id !== userId));
@@ -78,70 +59,54 @@ const DashboardGroupPage = () => {
     }
   };
 
-  
   const openUserSelectionModal = () => {
     setIsUserModalVisible(true);
   };
-
 
   const closeUserSelectionModal = () => {
     setIsUserModalVisible(false);
     setSearchQuery("");
   };
 
- 
   const saveSelectedUsers = () => {
     setNewGroup({ ...newGroup, members: selectedUsers });
     closeUserSelectionModal();
   };
 
- 
   const handleAddGroup = async () => {
-    try {
-      const response = await axios.post("http://localhost:3000/addGroup", {
-        ...newGroup,
-        userId,
-      });
-      if (response.data.success) {
-        message.success("Grupo añadido");
-        fetchGroups();
-        setIsModalVisible(false);
-        setNewGroup({ name: "", description: "", status: "Active", members: [] });
-        setSelectedUsers([]);
-      }
-    } catch (error) {
-      message.error("Error al añadir el grupo");
+    const result = await addGroup({ ...newGroup, userId });
+    if (result.success) {
+      message.success(result.message);
+      loadGroups();
+      setIsModalVisible(false);
+      setNewGroup({ name: "", description: "", status: "Active", members: [] });
+      setSelectedUsers([]);
+    } else {
+      message.error(result.message);
     }
   };
 
-  
   const handleDeleteGroup = async (groupId) => {
-    try {
-      const response = await axios.post("http://localhost:3000/deleteGroup", { groupId });
-      if (response.data.success) {
-        message.success("Grupo eliminado");
-        fetchGroups();
-      } else {
-        message.error(response.data.message);
-      }
-    } catch (error) {
-      message.error("Error al eliminar el grupo");
+    const result = await deleteGroup(groupId);
+    if (result.success) {
+      message.success(result.message);
+      loadGroups();
+    } else {
+      message.error(result.message);
     }
   };
 
   const handleEditGroup = async () => {
     if (!editingGroup || !editingGroup.id) return;
 
-    try {
-      const response = await axios.post("http://localhost:3000/updateGroup", editingGroup);
-      if (response.data.success) {
-        message.success("Grupo actualizado");
-        fetchGroups();
-        setIsEditModalVisible(false);
-        setEditingGroup(null);
-      }
-    } catch (error) {
-      message.error("Error al actualizar el grupo");
+    const result = await updateGroup(editingGroup);
+    if (result.success) {
+      message.success(result.message);
+      loadGroups();
+      setIsEditModalVisible(false);
+      setEditingGroup(null);
+    } else {
+      message.error(result.message);
     }
   };
 
@@ -227,7 +192,7 @@ const DashboardGroupPage = () => {
         </Button>
       </Modal>
 
-
+      {/* Modal para seleccionar usuarios */}
       <Modal
         title="Seleccionar Usuarios"
         visible={isUserModalVisible}
@@ -255,7 +220,7 @@ const DashboardGroupPage = () => {
         />
       </Modal>
 
-
+      {/* Modal para editar grupo */}
       <Modal
         title="Editar Grupo"
         visible={isEditModalVisible}
